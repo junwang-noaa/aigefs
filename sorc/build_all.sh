@@ -1,42 +1,39 @@
-#!/bin/sh
-set -eux
+#!/bin/bash
+set -eu
 
+# Build all AIGEFS components:
+#   1. aigefs_ensstat executable (CMake) -> ${HOMEaigefs}/exec
+#   2. Python virtual environment        -> ${HOMEaigefs}/venv
+#
 # to use debug flags export DEBUG='Y' before compiling
 export DEBUG=${DEBUG:-'N'}
 
-build_dir=`pwd`
-logs_dir=$build_dir/logs
-if [ ! -d $logs_dir  ]; then
-  echo "Creating logs folder"
-  mkdir $logs_dir
-fi
+readonly sorc_dir=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}")")" && pwd -P)
+readonly HOMEaigefs=$(cd "${sorc_dir}/.." && pwd -P)
+cd "${sorc_dir}"
 
-# Check final exec folder exists
-if [ ! -d "../exec" ]; then
-  echo "Creating ../exec folder"
-  mkdir ../exec
-fi
+logs_dir=${sorc_dir}/logs
+mkdir -p "${logs_dir}" "${HOMEaigefs}/exec"
 
-#------------------------------------
-# INCLUDE PARTIAL BUILD 
-#------------------------------------
-
-#. ./partial_build.sh
+build() {
+  local name=$1
+  local log=${logs_dir}/${name}.log
+  echo " .... Building ${name#build_} (log: ${log}) .... "
+  if ! "./${name}.sh" > "${log}" 2>&1; then
+    echo "FATAL ERROR: ${name}.sh failed, see ${log}"
+    tail -20 "${log}"
+    exit 1
+  fi
+}
 
 #------------------------------------
 # build aigefs_ensstat
 #------------------------------------
-echo " .... Building gefs_ensstat .... "
-./build_aigefs_ensstat.sh > $logs_dir/build_aigefs_ensstat.log 2>&1
+build build_aigefs_ensstat
 
 #------------------------------------
 # build virtual environment
 #------------------------------------
-echo " .... Building virtual environment .... "
-./build_venv.sh > $logs_dir/build_venv.log 2>&1
+build build_venv
 
-
-echo;echo " .... Build system finished .... "
-
-exit 0
-
+echo; echo " .... Build system finished .... "

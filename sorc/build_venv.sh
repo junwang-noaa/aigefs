@@ -1,18 +1,24 @@
 #!/bin/bash
 
-set -eux
+set -ex
 
 readonly HOMEaigefs=$(cd $(dirname $(readlink -f -n "${BASH_SOURCE[0]}"))/.. && pwd -P)
 
-source ../versions/build.ver
+source "${HOMEaigefs}/versions/build.ver"
 set +x
 # TODO: Make this work for non-WCOSS platforms
-module reset
-module load "PrgEnv-intel/${PrgEnv_intel_ver:?}"
-module load "intel/${intel_ver:?}"
-module load "python/${python_ver:?}"
+#module reset
+source /opt/intel/oneapi/compiler/${intel_ver:?}/env/vars.sh
+source /opt/intel/oneapi/mpi/${impi_ver:?}/env/vars.sh
+module use /lfs/work/alexander_richert/stack/spack-stack/envs/nco-sci-oneapi-${intel_ver}.0/modules_flat/Core
 module load "g2c/${g2c_ver:?}"
+
+#build GPU version
+module use /lfs/work/alexander_richert/stack/spack/var/spack/environments/cuda/modules_flat/linux-rocky9-x86_64/Core
+module load cuda/12.9.1-3hoj3a5
+
 module list
+
 set -x
 
 # Needed for grib2io
@@ -33,7 +39,7 @@ mkdir -p "${TMPDIR}"
 
 # Start creating the venv
 #python3 -m virtualenv --relocatable "${venv_dir}" # virtualenv version < 20.0
-python3 -m virtualenv "${venv_dir}"
+/lfs/work/alexander_richert/stack/spack/var/spack/environments/python-3_12/.spack-env/view/bin/python -m venv "${venv_dir}"
 source "${venv_dir}/bin/activate"
 
 # Prepare the venv requirements.txt file and save it in venv

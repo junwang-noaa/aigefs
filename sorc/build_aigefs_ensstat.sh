@@ -1,49 +1,34 @@
 #! /usr/bin/env bash
 set -eux
 
-module reset
-cwd=`pwd`
-
+readonly HOMEaigefs=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}")")/.." && pwd -P)
 progname=aigefs_ensstat
 
-source ../versions/build.ver
+source "${HOMEaigefs}/versions/build.ver"
 
-module use ${cwd}/../modulefiles/aigefs
+set +x
+module use "${HOMEaigefs}/modulefiles/aigefs"
 module load ${progname}
 module list
+set -x
 
-# Check final exec folder exists
-if [ ! -d "../exec" ]; then
-  mkdir ../exec
-fi
-
-#
-cd ${progname}.fd
-
-export FCMP=${FCMP:-ftn}
-export FCMP95=$FCMP
-
-if [ -v DEBUG && "$DEBUG" = 'Y' ] ; then
-  #export FFLAGSM="-O0 -traceback -check all -ftrapuv -convert big_endian"
-  export FFLAGSM="-O0 -traceback -g -check all -ftrapuv -convert big_endian"
+# to use debug flags export DEBUG='Y' before compiling
+if [[ "${DEBUG:-N}" == "Y" ]]; then
+  build_type=Debug
 else
-  export FFLAGSM="-O3 -traceback -convert big_endian"
+  build_type=Release
 fi
 
-export RECURS=
-export LDFLAGSM=${LDFLAGSM:-""}
-export OMPFLAGM=${OMPFLAGM:-""}
+src_dir="${HOMEaigefs}/sorc/${progname}.fd"
+build_dir="${src_dir}/build"
+rm -rf "${build_dir}"
 
-export INCSM="-I ${G2_INC4}"
+cmake -S "${src_dir}" -B "${build_dir}" \
+  -DCMAKE_Fortran_COMPILER="${FCMP:-ifx}" \
+  -DCMAKE_BUILD_TYPE="${build_type}" \
+  -DCMAKE_INSTALL_PREFIX="${HOMEaigefs}" \
+  -DCMAKE_INSTALL_BINDIR=exec
+cmake --build "${build_dir}" -j "${BUILD_JOBS:-4}"
+cmake --install "${build_dir}"
 
-#export LIBSM="${G2_LIB4} ${W3NCO_LIB4} ${BACIO_LIB4} ${JASPER_LIB} ${PNG_LIB} ${Z_LIB}"
-export LIBSM="${G2_LIB4} ${W3EMC_LIB4} ${BACIO_LIB4} ${JASPER_LIB} ${PNG_LIB} ${Z_LIB}"
-#export LIBSM="${LIBJPEG_LIBDIR}/libjpeg.so ${G2_LIB4} ${W3EMC_LIB4} ${BACIO_LIB4} ${LIBPNG_LIB} ${JASPER_LIB} ${PNG_LIB} ${Z_LIB}"
-#export LIBSM="${LIBJPEG_LIBDIR}/libjpeg.so ${G2_LIB4} ${W3EMC_LIB4} ${BACIO_LIB4} ${JASPER_LIB} ${PNG_LIB} ${Z_LIB}"
-
-make -f Makefile clobber
-make -f Makefile
-make -f Makefile install
-make -f Makefile clobber
-
-exit
+rm -rf "${build_dir}"
